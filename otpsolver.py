@@ -1,8 +1,8 @@
+#!/usr/bin/env python
 #Author: John Massy-Greene
 #Program Details: A TOTP Calculator
 #Date: 11/09/2017
 #Version 1
-#!/usr/bin/env python3
 
 import time
 import base64
@@ -17,12 +17,14 @@ paddedLength = 8
 digits = 6
 timeStep = 30
 initialTime = 0
+currentTime = 0
 sharedKey = ""
 counter = 0
 T = 0
 verbose = False
 totp = False
 extraArgs = ["d=", "--timebased", "ts=", "--verbose"]
+maxCount = 4294967296
 
 '''
 Arguments needed:
@@ -43,39 +45,48 @@ def handleArgs():
     print(argsLen)
     
     if(argsLen < 2 or argsLen > 6):
-        properUsage()
-    if(check_shared_key() == 0):
+        proper_usage()
         return 0
+    if(check_shared_key(args[0]) == 0):
+        return 0
+    
     if(argsLen >= 3):
         digits = [x for x in args if extraArgs[0] in x]
         if(len(digits) == 1):
-            if(check_digit_args(digits[0]==0):
+            if(check_digit_args(digits[0])==0):
                 return 0
         else:
             return 2
+        
         timeBool = [x for x in args if extraArgs[1] in x]
         if(len(timeBool) == 1):
             totp = True
         else:
             return 2
+        
         tsCheck = [x for x in args if extraArgs[2] in x]
         if(len(tsCheck) == 1):
-            if(check_time_step(ts_check[0]==0):
+            if(check_time_step(ts_check[0])==0):
                return 0
         else:
             return 2
-		verbCheck = [x for x in args if extraArgs[3] in x]
-		if(len(verbCheck) == 1):
-			verbose = True
-		else:
-			return 2
-	return 1
+
+        verbCheck = [x for x in args if extraArgs[3] in x]
+        if(len(verbCheck) == 1):
+            verbose = True
+        else:
+            return 2
+        
+    if(check_counter(args[1]) == 0):
+        return 0
+
+    return 1
         
 #NEED EXTRA CHECKING TO MAKE SURE WEIRD INPUT ISN'T GIVEN TO COMMANDS
                
             
-def check_shared_key():
-    sharedKey = args[0]
+def check_shared_key(key):
+    sharedKey = key
     try:
         base64.b32decode(sharedKey)
     except binascii.Error:
@@ -107,6 +118,69 @@ def check_time_step(time):
             result = 1
     if(result == 0):
         print("Timestep must be a number between 1 and 99")
+    return result
+
+
+#If regular count then its a value between 0 and 4294967296
+#If time based value then its either string "now" or
+#or a date time of the form "YYYY:MM:DD hh:mm:ss"
+def check_counter(counter):
+    result = 0
+    intC = 0
+    timePattern1 = "^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$"
+    timePattern2 = "now"
+
+    if(totp == False):
+        if(counter.isdigit() == False):
+            print("Counter must be an integer value")
+        intC = int(counter)
+        if(intC > maxCount):
+            print("Counter must be a value that can fit into 8 bytes")
+        result = 1
+
+    else:
+        matcher = re.compile(timePattern1)
+        matches = matcher.match(counter)
+        if(matches):
+            if((handle_custom_time(counter, matches)) == 1):
+                result = 1
+        elif(counter == timePattern2):
+            currentTime = time.time()
+            result = 1
+        else:
+            print("time must be either be the string \"now\" or of the form")
+            print("YYYY:MM:DD hh:mm:ss")
+
+    return result
+        
+#unix epoch ends on 2038 Jan 19 @ 3:14:08
+#note to self: Basic checks are ok but for non valid
+#dates do error handling from time.strtime()
+#e.g. Februrary 31st is not valid
+def handle_custom_time(time, regmatch):
+    result = 0
+    year = regmatch.group(1)
+    month = regmatch.group(2)
+    day = regmatch.group(3)
+    hour = regmatch.group(4)
+    minu = regmatch.group(5)
+    sec = regmatch.group(6)
+
+    year = int(year)
+    if(year < 1970 or year > 2038):
+        result = 1
+    if(month <= 0 or month > 12):
+        result = 1
+    if(day <= 0 or day > 31):
+        result = 1
+    if(hour > 23):
+        result = 1
+    if(minu > 59):
+        result = 1
+    if(sec > 59):
+        result = 1
+
+
     return result
         
         
@@ -160,15 +234,15 @@ print(finalCode)
 
 def main():
     proceed = handleArgs()
-	print("This is digits: "+str(digits))
-	print("This is verbose: "+str(verbose))
-	print("This is timestep: "+str(timeStep))
-	print("This is timebased: "+str(totp))
-	print("This is key: "+sharedKey)
+    print("This is digits: "+str(digits))
+    print("This is verbose: "+str(verbose))
+    print("This is timestep: "+str(timeStep))
+    print("This is timebased: "+str(totp))
+    print("This is key: "+sharedKey)
     if(proceed == 0):
         sys.exit()
-	elif(proceed == 2):
-		proper_usage()
+    elif(proceed == 2):
+        proper_usage()
 
 if __name__ == "__main__":
     main()
