@@ -127,7 +127,7 @@ def check_time_step(time):
 def check_counter(counter):
     result = 0
     intC = 0
-    timePattern1 = "^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$"
+    timePattern1 = "^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})(:(\d{3}))?$"
     timePattern2 = "now"
 
     if(totp == False):
@@ -148,38 +148,37 @@ def check_counter(counter):
             currentTime = time.time()
             result = 1
         else:
-            print("time must be either be the string \"now\" or of the form")
-            print("YYYY:MM:DD hh:mm:ss")
+            print("time must be either be the string \"now\" or of the forms:")
+            print("- YYYY:MM:DD hh:mm:ss")
+            print("- YYYY:MM:DD hh:mm:ss:xxx")
+            print("- where hh is 24 hour time and xxx is milliseconds")
 
     return result
         
-#unix epoch ends on 2038 Jan 19 @ 3:14:08
-#note to self: Basic checks are ok but for non valid
-#dates do error handling from time.strtime()
-#e.g. Februrary 31st is not valid
+#Need to test this function
 def handle_custom_time(time, regmatch):
     result = 0
+    
     year = regmatch.group(1)
     month = regmatch.group(2)
     day = regmatch.group(3)
     hour = regmatch.group(4)
     minu = regmatch.group(5)
     sec = regmatch.group(6)
+    if(regmatch.group(8) != None):
+        milli = str(int(regmatch.group(8))/1000)
+    else:
+        milli = 0
 
-    year = int(year)
-    if(year < 1970 or year > 2038):
+    try:
+        tup = time.strptime("{} {} {} {} {} {}"
+                            .format(year, month, day, hour, minu, sec),
+                            "%Y %m %d %H %M %S")
+        ctime = time.mktime(tup)
+        currentTime = ctime+milli
         result = 1
-    if(month <= 0 or month > 12):
-        result = 1
-    if(day <= 0 or day > 31):
-        result = 1
-    if(hour > 23):
-        result = 1
-    if(minu > 59):
-        result = 1
-    if(sec > 59):
-        result = 1
-
+    except ValueError:
+        pass
 
     return result
         
