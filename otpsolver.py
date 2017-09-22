@@ -39,10 +39,14 @@ matches = [st for st in e if d in st]
 '''
 
 def handleArgs():
+    global verbose
+    global totp
+    
     argsLen = len(sys.argv)
     args = sys.argv[1:argsLen]
     argsLen -= 1
-    print(argsLen)
+
+
     
     if(argsLen < 2 or argsLen > 6):
         proper_usage()
@@ -51,31 +55,35 @@ def handleArgs():
         return 0
     
     if(argsLen >= 3):
+        print("here")
         digits = [x for x in args if extraArgs[0] in x]
-        if(len(digits) == 1):
+        if(len(digits) >= 1):
+            if(len(digits) > 1):
+                return 2
             if(check_digit_args(digits[0])==0):
                 return 0
-        else:
-            return 2
         
         timeBool = [x for x in args if extraArgs[1] in x]
-        if(len(timeBool) == 1):
-            totp = True
-        else:
-            return 2
+        if(len(timeBool) >= 1):
+            if(len(timeBool) == 1):
+                totp = True
+            else:
+                return 2
         
         tsCheck = [x for x in args if extraArgs[2] in x]
-        if(len(tsCheck) == 1):
-            if(check_time_step(ts_check[0])==0):
-               return 0
-        else:
-            return 2
+        if(len(tsCheck) >= 1):
+            if(len(tsCheck) == 1):
+                if(check_time_step(ts_check[0])==0):
+                    return 0
+            else:
+                return 2
 
         verbCheck = [x for x in args if extraArgs[3] in x]
-        if(len(verbCheck) == 1):
-            verbose = True
-        else:
-            return 2
+        if(len(verbCheck) >= 1):
+            if(len(verbCheck) == 1):
+                verbose = True
+            else:
+                return 2
         
     if(check_counter(args[1]) == 0):
         return 0
@@ -86,6 +94,7 @@ def handleArgs():
                
             
 def check_shared_key(key):
+    global sharedKey
     sharedKey = key
     try:
         base64.b32decode(sharedKey)
@@ -94,6 +103,7 @@ def check_shared_key(key):
         return 0
             
 def check_digit_args(digit):
+    global digits
     digArgP = "^d=([0-9])$"
     result = 0
     dmatcher = re.compile(digArgP)
@@ -107,14 +117,16 @@ def check_digit_args(digit):
     return result
 
 def check_time_step(time):
+    global timeStep
+
     timeP = "^ts=([0-9]{2-3})$"
     result = 0
-    
+
     tmatcher = re.compile(timeP)
     matching = tmatcher.match(time)
     if(matching):
-        ts = int(result.group(1))
-        if(ts > 0):
+        timeStep = int(result.group(1))
+        if(timeStep > 0):
             result = 1
     if(result == 0):
         print("Timestep must be a number between 1 and 99")
@@ -124,27 +136,38 @@ def check_time_step(time):
 #If regular count then its a value between 0 and 4294967296
 #If time based value then its either string "now" or
 #or a date time of the form "YYYY:MM:DD hh:mm:ss"
-def check_counter(counter):
-    result = 0
+def check_counter(count):
+    global counter
+    global totp
+    global currentTime
+    result = 1
     intC = 0
     timePattern1 = "^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})(:(\d{3}))?$"
     timePattern2 = "now"
 
     if(totp == False):
-        if(counter.isdigit() == False):
+        print("here1")
+        if(count.isdigit() == False):
             print("Counter must be an integer value")
-        intC = int(counter)
-        if(intC > maxCount):
-            print("Counter must be a value that can fit into 8 bytes")
-        result = 1
+            result = 0
+        else:
+            print("here2")
+            intC = int(count)
+            if(intC > maxCount):
+                print("Counter must be a value that can fit into 8 bytes")
+                result = 0
+            else:
+                print("here3")
+                counter = count
 
     else:
         matcher = re.compile(timePattern1)
-        matches = matcher.match(counter)
+        matches = matcher.match(count)
         if(matches):
-            if((handle_custom_time(counter, matches)) == 1):
+            if((handle_custom_time(count, matches)) == 1):
                 result = 1
-        elif(counter == timePattern2):
+        elif(count == timePattern2):
+            print("timePattern2")
             currentTime = time.time()
             result = 1
         else:
@@ -238,10 +261,13 @@ def main():
     print("This is timestep: "+str(timeStep))
     print("This is timebased: "+str(totp))
     print("This is key: "+sharedKey)
+    print("This is counter: "+str(counter))
+    print("This is the time: "+str(currentTime))
+    print(str(time.time()))
     if(proceed == 0):
         sys.exit()
-    elif(proceed == 2):
-        proper_usage()
+    #elif(proceed == 2):
+    #    proper_usage()
 
 if __name__ == "__main__":
     main()
