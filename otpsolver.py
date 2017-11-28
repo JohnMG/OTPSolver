@@ -5,6 +5,8 @@
 #Version 1
 
 import time
+import datetime
+import calendar
 import base64
 import hmac
 import hashlib
@@ -13,11 +15,13 @@ import math
 import sys
 import re
 
+
 paddedLength = 8
 digits = 6
 timeStep = 30
 initialTime = 0
-currentTime = 0
+#taking out currentTime on the basis that we'll just use counter with TOTP(i.e. time becomes the counter value)
+#currentTime = 0
 sharedKey = ""
 counter = 0
 T = 0
@@ -28,7 +32,7 @@ maxCount = 4294967296
 
 '''
 Arguments needed:
-- Key
+- Key (needs to be at least 128 bits or 16 bytes )
 - Counter/Time (String -> depending on time based extra parsing required)
 Optionals:
 - Time based -> Boolean (default = false)
@@ -36,6 +40,10 @@ Optionals:
 - verbose -> boolean (print out debug stuff) (default = false)
 - timestep -> integer (relies on time based being true) (default = 30)
 matches = [st for st in e if d in st]
+
+Future arguments required:
+- Base32/Base64/HEX
+- SHA1/SHA256/SHA512
 '''
 
 def handleArgs():
@@ -46,7 +54,6 @@ def handleArgs():
     args = sys.argv[1:argsLen]
     argsLen -= 1
 
-
     
     if(argsLen < 2 or argsLen > 6):
         proper_usage()
@@ -55,7 +62,6 @@ def handleArgs():
         return 0
     
     if(argsLen >= 3):
-        print("here")
         digits = [x for x in args if extraArgs[0] in x]
         if(len(digits) >= 1):
             if(len(digits) > 1):
@@ -91,27 +97,37 @@ def handleArgs():
     return 1
         
 #NEED EXTRA CHECKING TO MAKE SURE WEIRD INPUT ISN'T GIVEN TO COMMANDS
-               
-            
+#As in you can give -timebased instead of --timebased and it won't give warnings
+#need to check this
+
+#The shared key must be at least 128 bits and recommended 160 according to RFC4226
+#Will not enforce this. But will instead provide warning.
 def check_shared_key(key):
     global sharedKey
     sharedKey = key
     try:
         base64.b32decode(sharedKey)
-    except binascii.Error:
-        print("The key provided is not base32. Program exiting\n")
+        length = len(sharedKey)*5
+        #if(length < 128):
+            #print("The key provided is less than 128 bits. This is only a warning. Program continuing.")
+    except(binascii.Error, TypeError):
+        print("The key provided is either not Base32 or you don't have correct padding")
         return 0
             
 def check_digit_args(digit):
     global digits
-    digArgP = "^d=([0-9])$"
+    digArgP = "^d=([0-9]+)$"
     result = 0
     dmatcher = re.compile(digArgP)
     result = dmatcher.match(digit)
+
     if(result):
-        digits = int(result.group(1))
-        if(digits == 6 or digits == 8):
+        digit = int(result.group(1))
+        if(digit == 6 or digit == 8):
             result = 1
+            digits = digit
+        else:
+            result = 0
     if(result==0):
         print("digits must be 6 or 8")
     return result
@@ -135,51 +151,49 @@ def check_time_step(time):
 
 #If regular count then its a value between 0 and 4294967296
 #If time based value then its either string "now" or
-#or a date time of the form "YYYY:MM:DD hh:mm:ss"
+#or a date time of the form "YYYY:MM:DD:hh:mm:ss:{milliseconds}"
+#where milliseconds is optional
 def check_counter(count):
     global counter
     global totp
     global currentTime
     result = 1
     intC = 0
-    timePattern1 = "^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})(:(\d{3}))?$"
+    timePattern1 = "^(\d{4}):(\d{2}):(\d{2}):(\d{2}):(\d{2}):(\d{2})(:(\d{3}))?$"
     timePattern2 = "now"
 
     if(totp == False):
-        print("here1")
         if(count.isdigit() == False):
-            print("Counter must be an integer value")
+            print("Counter must be a non-zero positive integer value")
             result = 0
         else:
-            print("here2")
             intC = int(count)
             if(intC > maxCount):
                 print("Counter must be a value that can fit into 8 bytes")
                 result = 0
+            elif(intC == 0):
+                print("Counter must be a non-zero positive integer value")
+                result = 0
             else:
-                print("here3")
                 counter = count
 
     else:
         matcher = re.compile(timePattern1)
         matches = matcher.match(count)
         if(matches):
-            if((handle_custom_time(count, matches)) == 1):
+            if((handle_custom_time(matches)) == 1):
                 result = 1
         elif(count == timePattern2):
-            print("timePattern2")
-            currentTime = time.time()
+            handle_now_time()
             result = 1
         else:
-            print("time must be either be the string \"now\" or of the forms:")
-            print("- YYYY:MM:DD hh:mm:ss")
-            print("- YYYY:MM:DD hh:mm:ss:xxx")
-            print("- where hh is 24 hour time and xxx is milliseconds")
+            print_time_error()
 
     return result
         
 #Need to test this function
-def handle_custom_time(time, regmatch):
+def handle_custom_time(regmatch):
+    global counter
     result = 0
     
     year = regmatch.group(1)
@@ -189,21 +203,39 @@ def handle_custom_time(time, regmatch):
     minu = regmatch.group(5)
     sec = regmatch.group(6)
     if(regmatch.group(8) != None):
-        milli = str(int(regmatch.group(8))/1000)
+        milli = float(regmatch.group(8))/1000
     else:
-        milli = 0
+        milli = float(0)
 
     try:
         tup = time.strptime("{} {} {} {} {} {}"
                             .format(year, month, day, hour, minu, sec),
                             "%Y %m %d %H %M %S")
-        ctime = time.mktime(tup)
-        currentTime = ctime+milli
+        ctime = float(calendar.timegm(tup))+milli
+        counter = ctime
         result = 1
     except ValueError:
-        pass
+        print_time_error()
 
     return result
+
+def handle_now_time():
+    global counter
+
+    theTime = datetime.datetime.utcnow()
+    millis = round(float(theTime.microsecond)/1000)/1000
+    theTime = str(theTime)
+    tup = time.strptime(theTime, "%Y-%m-%d %H:%M:%S.%f")
+    ctime = round(float(calendar.timegm(tup)),3)
+    ctime += millis
+    counter = ctime
+    
+
+def print_time_error():
+    print("time must be either be the string \"now\" or of the forms:")
+    print("- YYYY:MM:DD:hh:mm:ss")
+    print("- YYYY:MM:DD:hh:mm:ss:xxx")
+    print("- where hh is 24 hour time and xxx is milliseconds")
         
         
 def proper_usage():
@@ -213,7 +245,8 @@ def proper_usage():
     print("key         => A base32 secret key")
     print("counter     => a integer value that can fit into 8 bytes. Can use this OR time")
     print("time        => use the word 'now' to use the current system time or use a time"+
-                          "in the form of dd:mm:yy hh:mm:ss")
+                          "in the form of dd:mm:yy hh:mm:ss"+
+                          "must be paired the option --timebased")
     print("digits      => Specify the digits for the OTP. 6 ~ 8")
     print("--timebased => use this if you want TOTP instead of HOTP")
     print("timestep    => a value expressed in seconds that you want the TOTP to use as the window of"+
@@ -261,8 +294,8 @@ def main():
     print("This is timestep: "+str(timeStep))
     print("This is timebased: "+str(totp))
     print("This is key: "+sharedKey)
-    print("This is counter: "+str(counter))
-    print("This is the time: "+str(currentTime))
+    print("This is counter: "+str(repr(counter)))
+    #print("This is the time: "+str(currentTime))
     print(str(time.time()))
     if(proceed == 0):
         sys.exit()
