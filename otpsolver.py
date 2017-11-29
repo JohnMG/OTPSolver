@@ -62,6 +62,11 @@ def handleArgs():
         return 0
     
     if(argsLen >= 3):
+        #check to make sure no weird args passed
+        checkArgs = args[2:]
+        if(check_bad_args(checkArgs) == True):
+            return 2
+        
         digits = [x for x in args if extraArgs[0] in x]
         if(len(digits) >= 1):
             if(len(digits) > 1):
@@ -79,7 +84,7 @@ def handleArgs():
         tsCheck = [x for x in args if extraArgs[2] in x]
         if(len(tsCheck) >= 1):
             if(len(tsCheck) == 1):
-                if(check_time_step(ts_check[0])==0):
+                if(check_time_step(tsCheck[0])==0):
                     return 0
             else:
                 return 2
@@ -97,8 +102,21 @@ def handleArgs():
     return 1
         
 #NEED EXTRA CHECKING TO MAKE SURE WEIRD INPUT ISN'T GIVEN TO COMMANDS
-#As in you can give -timebased instead of --timebased and it won't give warnings
-#need to check this
+#This check function is sorta awful
+def check_bad_args(argList):
+    result = False
+    argPatterns = ["d=[0-9]+", "--verbose", "--timebased", "ts=[0-9]+"]
+    for x in argList:
+        for y in argPatterns:
+            matcher = re.compile(y)
+            matched = matcher.match(x)
+            if(matched):
+                break
+        else:
+            return True
+        
+
+    return result
 
 #The shared key must be at least 128 bits and recommended 160 according to RFC4226
 #Will not enforce this. But will instead provide warning.
@@ -132,16 +150,16 @@ def check_digit_args(digit):
         print("digits must be 6 or 8")
     return result
 
-def check_time_step(time):
+def check_time_step(timer):
     global timeStep
 
-    timeP = "^ts=([0-9]{2-3})$"
+    timeP = "^ts=([0-9]{1,3})$"
     result = 0
 
     tmatcher = re.compile(timeP)
-    matching = tmatcher.match(time)
+    matching = tmatcher.match(timer)
     if(matching):
-        timeStep = int(result.group(1))
+        timeStep = int(matching.group(1))
         if(timeStep > 0):
             result = 1
     if(result == 0):
