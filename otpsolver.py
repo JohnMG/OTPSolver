@@ -202,7 +202,7 @@ def check_counter(count):
             if((handle_custom_time(matches)) == 1):
                 result = 1
         elif(count == timePattern2):
-            handle_now_time()
+            counter = time.time()
             result = 1
         else:
             print_time_error()
@@ -236,17 +236,6 @@ def handle_custom_time(regmatch):
         print_time_error()
 
     return result
-
-def handle_now_time():
-    global counter
-
-    theTime = datetime.datetime.utcnow()
-    millis = round(float(theTime.microsecond)/1000)/1000
-    theTime = str(theTime)
-    tup = time.strptime(theTime, "%Y-%m-%d %H:%M:%S.%f")
-    ctime = round(float(calendar.timegm(tup)),3)
-    ctime += millis
-    counter = ctime
     
 
 def print_time_error():
@@ -262,9 +251,9 @@ def proper_usage():
     print("Arguments:")
     print("key         => A base32 secret key")
     print("counter     => a integer value that can fit into 8 bytes. Can use this OR time")
-    print("time        => use the word 'now' to use the current system time or use a time"+
-                          "in the form of dd:mm:yy hh:mm:ss"+
-                          "must be paired the option --timebased")
+    print("time        => use the word 'now' to use the current system time or use a time")
+    print("               in the form of yy:mm:dd:hh:mm:ss (milliseconds optional)")
+    print("               must be paired the option --timebased")
     print("digits      => Specify the digits for the OTP. 6 ~ 8")
     print("--timebased => use this if you want TOTP instead of HOTP")
     print("timestep    => a value expressed in seconds that you want the TOTP to use as the window of"+
@@ -272,6 +261,8 @@ def proper_usage():
     print("--verbose   => use this to print debugging messages")
         
 ''''
+This is the original code
+
 paddedLength = 8
 #currentTime = round(time.mktime(time.gmtime()))
 currentTime = time.time()
@@ -305,20 +296,75 @@ finalCode = partCode2 % (10**digits)
 print(finalCode)
 '''
 
+'''
+Note to self: this function is here so that in future
+you can test whether the key given is base64, base32 or hex
+For the moment it only converts base32 keys to bytes
+'''
+def key_to_bytes(key):
+    result = 0
+    result = base64.b32decode(key)
+    return key
+
+def totp_algorithm():
+    #insert code for totp version here
+
+
+def hotp_algorithm(counter, key):
+    global digits
+    mask1 = 0x0f
+    mask2 = 0x7fffffff
+    hashAlg = hashlib.sha1()
+    
+    byteKey = key_to_bytes(key)
+    byteCounter = counter.to_bytes(8, byteorder='big', signed=False)
+
+    hmacsha1 = hmac.new(byteKey, byteCounter, hashAlg)
+    HS = hmacsha1.digest()
+    offset = HS[19]&mask1
+    fullCode = HS[offset:offset+4]
+    fullCode = fullCode&mask2
+
+    finalCode = fullCode % (10**digits)
+    return finalCode
+    
+    
+
+def main_calculation():
+    global totp
+    global sharedKey
+    global counter
+    result
+    
+    if(totp):
+        totp_algorithm()
+    else:
+        hotp_algorithm(sharedKey, counter)
+
+    return
+
+
+
 def main():
     proceed = handleArgs()
-    print("This is digits: "+str(digits))
+    result  = 0
+    '''print("This is digits: "+str(digits))
     print("This is verbose: "+str(verbose))
     print("This is timestep: "+str(timeStep))
     print("This is timebased: "+str(totp))
     print("This is key: "+sharedKey)
     print("This is counter: "+str(repr(counter)))
     #print("This is the time: "+str(currentTime))
-    print(str(time.time()))
+    print(repr(time.time()))'''
     if(proceed == 0):
         sys.exit()
-    #elif(proceed == 2):
-    #    proper_usage()
+    elif(proceed == 1):
+        result = main_calculation()
+    elif(proceed == 2):
+        proper_usage()
+
+    if(result!=0):
+        print("This is the code: "+result)
 
 if __name__ == "__main__":
     main()
