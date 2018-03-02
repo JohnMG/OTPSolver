@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
+
 #Author: John Massy-Greene
 #Program Details: A TOTP Calculator
 #Date: 11/09/2017
@@ -20,7 +21,9 @@ digits = 6
 timeStep = 30
 #initialTime = T0
 initialTime = 0
-#taking out currentTime on the basis that we'll just use counter with TOTP(i.e. time becomes the counter value)
+#taking out currentTime on the basis that we'll just use counter
+#with TOTP(i.e. time becomes the counter value)
+
 #currentTime = 0
 sharedKey = ""
 counter = 0
@@ -196,7 +199,7 @@ def check_counter(count):
                 print("Counter must be a non-zero positive integer value")
                 result = 0
             else:
-                counter = count
+                counter = int(count)
 
     else:
         matcher = re.compile(timePattern1)
@@ -273,9 +276,9 @@ For the moment it only converts base32 keys to bytes
 def key_to_bytes(key):
     result = 0
     result = base64.b32decode(key)
-    return key
+    return result
 
-def totp_algorithm(count, key):
+def totp_algorithm(key, count):
     global initialTime
     global timeStep
 
@@ -284,11 +287,11 @@ def totp_algorithm(count, key):
     return result
 
 
-def hotp_algorithm(count, key):
+def hotp_algorithm(key, count):
     global digits
     mask1 = 0x0f
     mask2 = 0x7fffffff
-    hashAlg = hashlib.sha1()
+    hashAlg = hashlib.sha1
     
     byteKey = key_to_bytes(key)
     byteCounter = count.to_bytes(8, byteorder='big', signed=False)
@@ -297,9 +300,10 @@ def hotp_algorithm(count, key):
     HS = hmacsha1.digest()
     offset = HS[19]&mask1
     fullCode = HS[offset:offset+4]
-    fullCode = fullCode&mask2
+    fullCodeNum = int.from_bytes(fullCode, byteorder='big', signed=False)
+    fullCodeNum = fullCodeNum&mask2
 
-    finalCode = fullCode % (10**digits)
+    finalCode = fullCodeNum % (10**digits)
     return finalCode
     
     
@@ -312,10 +316,10 @@ def main_calculation():
     
     if(totp):
         result = totp_algorithm(sharedKey, counter)
-    else
+    else:
         result = hotp_algorithm(sharedKey, counter)
 
-    return 0
+    return result
 
 
 
@@ -338,7 +342,7 @@ def main():
         proper_usage()
 
     if(result!=0):
-        print("This is the code: "+result)
+        print("This is the code: "+str(result))
 
 if __name__ == "__main__":
     main()
