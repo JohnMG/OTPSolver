@@ -16,19 +16,21 @@ import sys
 import re
 
 
-paddedLength = 8
 digits = 6
 timeStep = 30
+#initialTime = T0
 initialTime = 0
 #taking out currentTime on the basis that we'll just use counter with TOTP(i.e. time becomes the counter value)
 #currentTime = 0
 sharedKey = ""
 counter = 0
-T = 0
 verbose = False
 totp = False
 extraArgs = ["d=", "--timebased", "ts=", "--verbose"]
-maxCount = 4294967296
+#maxCount should not be 4294967296. This is maximum value of 4 bytes signed
+#changed maxCount to (2**63)-1 which is the maximum value of 8 bytes signed
+#Later on in the program the sign gets masked out anway
+maxCount = ((2**63)-1)
 
 '''
 Arguments needed:
@@ -44,6 +46,7 @@ matches = [st for st in e if d in st]
 Future arguments required:
 - Base32/Base64/HEX
 - SHA1/SHA256/SHA512
+- initialTime or T0 as RFC4226 calls it
 '''
 
 def handleArgs():
@@ -210,6 +213,8 @@ def check_counter(count):
     return result
         
 #Need to test this function
+#Found after some testing this function handles dates past the time
+#07/02/2016 06:28:16
 def handle_custom_time(regmatch):
     global counter
     result = 0
@@ -259,42 +264,6 @@ def proper_usage():
     print("timestep    => a value expressed in seconds that you want the TOTP to use as the window of"+
                           "how often the code changes")
     print("--verbose   => use this to print debugging messages")
-        
-''''
-This is the original code
-
-paddedLength = 8
-#currentTime = round(time.mktime(time.gmtime()))
-currentTime = time.time()
-print("This is the time in UTC: "+str(time.gmtime()))
-print("This is local system time: "+str(time.time()))
-print("This is the epoch seconds: "+str(currentTime))
-initialTime = 0
-timeStep = 30
-digits = 6
-sharedKey = '44KKCPXF6WT772ZK'
-skBytes = base64.b32decode(sharedKey)
-print("Key as hex: "+str(binascii.hexlify(skBytes)))
-T = math.floor(currentTime/timeStep)
-byteLen = T.bit_length()//8
-extra = paddedLength-byteLen
-tAsBytes = T.to_bytes((byteLen+extra), byteorder='big')
-print(type(tAsBytes))
-print("This is T as bytes: "+str(binascii.hexlify(tAsBytes)))
-m = hashlib.sha1
-hm = hmac.new(skBytes, tAsBytes, hashlib.sha1)
-print("Final Hex: "+str(binascii.hexlify(hm.digest())))
-hmBytes = hm.digest()
-lastByte = hmBytes[19]
-mask =  0x0f
-offset = lastByte & mask
-print(offset)
-partCode = hmBytes[offset:offset+4]
-print("Part is: "+str(binascii.hexlify(partCode)))
-partCode2 = int.from_bytes(partCode, byteorder='big')
-finalCode = partCode2 % (10**digits)
-print(finalCode)
-'''
 
 '''
 Note to self: this function is here so that in future
@@ -306,18 +275,23 @@ def key_to_bytes(key):
     result = base64.b32decode(key)
     return key
 
-def totp_algorithm():
-    #insert code for totp version here
+def totp_algorithm(count, key):
+    global initialTime
+    global timeStep
+
+    T = math.floor((count-initialTime)/timeStep)
+    result = hotp_algorithm(T, key)
+    return result
 
 
-def hotp_algorithm(counter, key):
+def hotp_algorithm(count, key):
     global digits
     mask1 = 0x0f
     mask2 = 0x7fffffff
     hashAlg = hashlib.sha1()
     
     byteKey = key_to_bytes(key)
-    byteCounter = counter.to_bytes(8, byteorder='big', signed=False)
+    byteCounter = count.to_bytes(8, byteorder='big', signed=False)
 
     hmacsha1 = hmac.new(byteKey, byteCounter, hashAlg)
     HS = hmacsha1.digest()
@@ -334,14 +308,14 @@ def main_calculation():
     global totp
     global sharedKey
     global counter
-    result
+    result = 0
     
     if(totp):
-        totp_algorithm()
-    else:
-        hotp_algorithm(sharedKey, counter)
+        result = totp_algorithm(sharedKey, counter)
+    else
+        result = hotp_algorithm(sharedKey, counter)
 
-    return
+    return 0
 
 
 
