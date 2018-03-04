@@ -21,15 +21,11 @@ digits = 6
 timeStep = 30
 #initialTime = T0
 initialTime = 0
-#taking out currentTime on the basis that we'll just use counter
-#with TOTP(i.e. time becomes the counter value)
-
-#currentTime = 0
 sharedKey = ""
 counter = 0
 verbose = False
 totp = False
-extraArgs = ["d=", "--timebased", "ts=", "--verbose"]
+extraArgs = ["d=","--timebased", "ts=", "--verbose", "T0="]
 #maxCount should not be 4294967296. This is maximum value of 4 bytes signed
 #changed maxCount to (2**63)-1 which is the maximum value of 8 bytes signed
 #Later on in the program the sign gets masked out anway
@@ -45,73 +41,87 @@ Optionals:
 - verbose -> boolean (print out debug stuff) (default = false)
 - timestep -> integer (relies on time based being true) (default = 30)
 matches = [st for st in e if d in st]
+- T0 -> The initial time to start counting time steps. Default value is 0
 
 Future arguments required:
 - Base32/Base64/HEX
 - SHA1/SHA256/SHA512
 - initialTime or T0 as RFC4226 calls it
 '''
-
+#The return codes are as follows:
+# 0 = Arguments handled successfully
+# 1 = Arguments given are not correct
 def handleArgs():
     global verbose
     global totp
+
+    minArgs = 2
+    maxArgs = 7
     
     argsLen = len(sys.argv)
     args = sys.argv[1:argsLen]
     argsLen -= 1
 
     
-    if(argsLen < 2 or argsLen > 6):
-        proper_usage()
-        return 0
+    if(argsLen < minArgs or argsLen > maxArgs):
+        return 1
     if(check_shared_key(args[0]) == 0):
-        return 0
+        return 1
     
     if(argsLen >= 3):
         #check to make sure no weird args passed
         checkArgs = args[2:]
         if(check_bad_args(checkArgs) == True):
-            return 2
+            return 1
         
         digits = [x for x in args if extraArgs[0] in x]
         if(len(digits) >= 1):
             if(len(digits) > 1):
-                return 2
+                return 1
             if(check_digit_args(digits[0])==0):
-                return 0
+                return 1
         
         timeBool = [x for x in args if extraArgs[1] in x]
         if(len(timeBool) >= 1):
             if(len(timeBool) == 1):
                 totp = True
             else:
-                return 2
+                return 1
+            
+        initTimeCheck = [x for x in args if extraArgs[4] in x]
+        if(len(initTimeCheck) >= 1):
+            if(len(initTimeCheck) > 1):
+                return 1
+            if(check_initial_time(initTimecheck[0]) == 0):
+                return 1
         
         tsCheck = [x for x in args if extraArgs[2] in x]
         if(len(tsCheck) >= 1):
             if(len(tsCheck) == 1):
                 if(check_time_step(tsCheck[0])==0):
-                    return 0
+                    return 1
             else:
-                return 2
+                return 1
 
         verbCheck = [x for x in args if extraArgs[3] in x]
         if(len(verbCheck) >= 1):
             if(len(verbCheck) == 1):
                 verbose = True
             else:
-                return 2
-        
-    if(check_counter(args[1]) == 0):
-        return 0
+                return 1
+#check for initial time after checking for timebool but before the counter
+#add code to handle the case that initial time comes before the counter
 
-    return 1
+    if(check_counter(args[1]) == 0):
+        return 1
+
+    return 0
         
 #NEED EXTRA CHECKING TO MAKE SURE WEIRD INPUT ISN'T GIVEN TO COMMANDS
 #This check function is sorta awful
 def check_bad_args(argList):
     result = False
-    argPatterns = ["d=[0-9]+", "--verbose", "--timebased", "ts=[0-9]+"]
+    argPatterns = ["d=[0-9]+","T0=*" ,"--verbose", "--timebased", "ts=[0-9]+"]
     for x in argList:
         for y in argPatterns:
             matcher = re.compile(y)
@@ -172,19 +182,13 @@ def check_time_step(timer):
         print("Timestep must be a number between 1 and 99")
     return result
 
-
-#If regular count then its a value between 0 and 4294967296
-#If time based value then its either string "now" or
-#or a date time of the form "YYYY:MM:DD:hh:mm:ss:{milliseconds}"
-#where milliseconds is optional
 def check_counter(count):
     global counter
     global totp
     global currentTime
-    result = 1
+    global initialTime
+    result = 0
     intC = 0
-    timePattern1 = "^(\d{4}):(\d{2}):(\d{2}):(\d{2}):(\d{2}):(\d{2})(:(\d{3}))?$"
-    timePattern2 = "now"
 
     if(totp == False):
         if(count.isdigit() == False):
@@ -202,25 +206,57 @@ def check_counter(count):
                 counter = int(count)
 
     else:
-        matcher = re.compile(timePattern1)
-        matches = matcher.match(count)
-        if(matches):
-            if((handle_custom_time(matches)) == 1):
-                result = 1
-        elif(count == timePattern2):
-            counter = time.time()
+        timeResult = general_time_check(count)
+        if(timeResult != -1):
+            counter = timeResult
             result = 1
-        else:
-            print_time_error()
+        if(counter <= initialTime):
+            print("Current Time must be a value greater than T0")
 
     return result
-        
-#Need to test this function
+
+def check_initial_time(aTime):
+    global initialTime
+    result = 0
+
+    timeResult = general_time_check(aTime)
+    if(timeResult != -1):
+        initialTime = timeResult
+        result = 1 
+
+    return result
+
+
+#If regular count then its a value between 0 and 4294967296
+#If time based value then its either string "now" or
+#or a date time of the form "YYYY:MM:DD:hh:mm:ss:{milliseconds}"
+#where milliseconds is optional
+def general_time_check(aTime):
+    result = -1
+    timePattern1 = "^(\d{4}):(\d{2}):(\d{2}):(\d{2}):(\d{2}):(\d{2})(:(\d{3}))?$"
+    timePattern2 = "now"
+
+    matcher = re.compile(timePattern1)
+    matches = matcher.match(aTime)
+    if(matches):
+        timeHandled = handle_custom_time(matches)
+        if(timeHandled != -1):
+            result = timeHandled
+    elif(count == timePattern2):
+        result = time.time()
+    else:
+        print_time_error()
+
+
+    return result
+
+
 #Found after some testing this function handles dates past the time
 #07/02/2016 06:28:16
+# result will be -1 when the time is not correct as all correct times
+# in Unix epoch are >= 0
 def handle_custom_time(regmatch):
-    global counter
-    result = 0
+    result = -1
     
     year = regmatch.group(1)
     month = regmatch.group(2)
@@ -238,8 +274,7 @@ def handle_custom_time(regmatch):
                             .format(year, month, day, hour, minu, sec),
                             "%Y %m %d %H %M %S")
         ctime = float(calendar.timegm(tup))+milli
-        counter = ctime
-        result = 1
+        result = ctime
     except ValueError:
         print_time_error()
 
@@ -257,7 +292,7 @@ def proper_usage():
     print("Usage: otpsolver.py [key] [[counter] or [time]] [d=digits]")
     print("                    [--timebased] [ts=timestep] [--verbose]\n")
     print("Arguments:")
-    print("key         => A base32 secret key")
+    print("key         => A base32, base64 or hexademical secret key")
     print("counter     => a integer value that can fit into 8 bytes. Can use this OR time")
     print("time        => use the word 'now' to use the current system time or use a time")
     print("               in the form of yy:mm:dd:hh:mm:ss (milliseconds optional)")
@@ -283,7 +318,7 @@ def totp_algorithm(key, count):
     global timeStep
 
     T = math.floor((count-initialTime)/timeStep)
-    result = hotp_algorithm(T, key)
+    result = hotp_algorithm(key, T)
     return result
 
 
@@ -334,12 +369,11 @@ def main():
     print("This is counter: "+str(repr(counter)))
     #print("This is the time: "+str(currentTime))
     print(repr(time.time()))'''
-    if(proceed == 0):
-        sys.exit()
-    elif(proceed == 1):
-        result = main_calculation()
-    elif(proceed == 2):
+    if(proceed == 1):
         proper_usage()
+        sys.exit()
+    else:
+        result = main_calculation()
 
     if(result!=0):
         print("This is the code: "+str(result))
