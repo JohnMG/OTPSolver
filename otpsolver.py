@@ -92,7 +92,7 @@ def handleArgs():
         if(len(initTimeCheck) >= 1):
             if(len(initTimeCheck) > 1):
                 return 1
-            if(check_initial_time(initTimecheck[0]) == 0):
+            if(check_initial_time(initTimeCheck[0]) == 0):
                 return 1
         
         tsCheck = [x for x in args if extraArgs[2] in x]
@@ -121,7 +121,9 @@ def handleArgs():
 #This check function is sorta awful
 def check_bad_args(argList):
     result = False
-    argPatterns = ["d=[0-9]+","T0=*" ,"--verbose", "--timebased", "ts=[0-9]+"]
+    argPatterns = ["d=[0-9]+",
+                   "T0=\d{4}:\d{2}:\d{2}:\d{2}:\d{2}:\d{2}(:\d{3})?",
+                   "T0=now","--verbose", "--timebased", "ts=[0-9]+"]
     for x in argList:
         for y in argPatterns:
             matcher = re.compile(y)
@@ -131,7 +133,6 @@ def check_bad_args(argList):
         else:
             return True
         
-
     return result
 
 #The shared key must be at least 128 bits and recommended 160 according to RFC4226
@@ -192,37 +193,40 @@ def check_counter(count):
 
     if(totp == False):
         if(count.isdigit() == False):
-            print("Counter must be a non-zero positive integer value")
-            result = 0
+            print("Counter must be an integer value >= 0")
         else:
             intC = int(count)
             if(intC > maxCount):
                 print("Counter must be a value that can fit into 8 bytes")
-                result = 0
-            elif(intC == 0):
-                print("Counter must be a non-zero positive integer value")
-                result = 0
+            elif(intC < 0):
+                print("Counter must be an integer value >= 0")
             else:
                 counter = int(count)
+                result = 1 
 
     else:
         timeResult = general_time_check(count)
         if(timeResult != -1):
             counter = timeResult
             result = 1
-        if(counter <= initialTime):
-            print("Current Time must be a value greater than T0")
+        if(counter < initialTime):
+            print("Current Time must be greater than or equal to T0")
+            result = 0
 
     return result
 
 def check_initial_time(aTime):
     global initialTime
+    global totp
     result = 0
-
-    timeResult = general_time_check(aTime)
-    if(timeResult != -1):
-        initialTime = timeResult
-        result = 1 
+    if(totp != False):
+        aTime = aTime[3:]
+        timeResult = general_time_check(aTime)
+        if(timeResult != -1):
+            initialTime = timeResult
+            result = 1
+    else:
+        print("T0 is only suitable for time-based OTP")
 
     return result
 
@@ -232,6 +236,7 @@ def check_initial_time(aTime):
 #or a date time of the form "YYYY:MM:DD:hh:mm:ss:{milliseconds}"
 #where milliseconds is optional
 def general_time_check(aTime):
+    
     result = -1
     timePattern1 = "^(\d{4}):(\d{2}):(\d{2}):(\d{2}):(\d{2}):(\d{2})(:(\d{3}))?$"
     timePattern2 = "now"
@@ -242,7 +247,7 @@ def general_time_check(aTime):
         timeHandled = handle_custom_time(matches)
         if(timeHandled != -1):
             result = timeHandled
-    elif(count == timePattern2):
+    elif(aTime == timePattern2):
         result = time.time()
     else:
         print_time_error()
