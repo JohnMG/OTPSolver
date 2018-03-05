@@ -25,12 +25,15 @@ sharedKey = ""
 counter = 0
 verbose = False
 totp = False
-extraArgs = ["d=","--timebased", "ts=", "--verbose", "T0=", "hash="]
+extraArgs = ["d=","--timebased", "ts=", "--verbose", "T0=", "hash=", "key="]
 #maxCount should not be 4294967296. This is maximum value of 4 bytes signed
 #changed maxCount to (2**63)-1 which is the maximum value of 8 bytes signed
 #Later on in the program the sign gets masked out anway
 maxCount = ((2**63)-1)
 hashAlgorithm = hashlib.sha1
+#keyEncoding will be a string that tells the program to decode the key
+#based on whether it is hexademical, base32 or base64. Default is base32
+keyEncoding = "base32"
 
 
 '''
@@ -38,7 +41,6 @@ TO DO:
 
 Future arguments required:
 - Base32/Base64/HEX
-- SHA1/SHA256/SHA512
 
 Still need to implement the verbose 
 '''
@@ -50,7 +52,7 @@ def handleArgs():
     global totp
 
     minArgs = 2
-    maxArgs = 8
+    maxArgs = 9
     
     argsLen = len(sys.argv)
     args = sys.argv[1:argsLen]
@@ -58,8 +60,6 @@ def handleArgs():
 
     
     if(argsLen < minArgs or argsLen > maxArgs):
-        return 1
-    if(check_shared_key(args[0]) == 0):
         return 1
     
     if(argsLen >= 3):
@@ -111,8 +111,18 @@ def handleArgs():
                     return 1
             else:
                 return 1
+
+        keyCheck = [x for x in args if extraArgs[6] in x]
+        if(len(keyCheck) >= 1):
+            if(len(keyCheck) == 1):
+                if(check_key_type(keyCheck[0]) == 0):
+                    return 1
+            else:
+                return 1
 #check for initial time after checking for timebool but before the counter
 #add code to handle the case that initial time comes before the counter
+    if(check_shared_key(args[0]) == 0):
+        return 1
 
     if(check_counter(args[1]) == 0):
         return 1
@@ -126,7 +136,8 @@ def check_bad_args(argList):
     argPatterns = ["d=[0-9]+",
                    "T0=\d{4}:\d{2}:\d{2}:\d{2}:\d{2}:\d{2}(:\d{3})?",
                    "T0=now","--verbose", "--timebased", "ts=[0-9]+",
-                   "^hash=(sha1|sha256|sha512)$"]
+                   "^hash=(sha1|sha256|sha512)$",
+                   "^key=(hex|base32|base64)$"]
     for x in argList:
         for y in argPatterns:
             matcher = re.compile(y)
@@ -138,34 +149,66 @@ def check_bad_args(argList):
         
     return result
 
+def check_key_type(keyType):
+    global keyEncoding
+    result = 0
+    keyPattern =  "^key=(hex|base32|base64)$"
+
+    kMatcher = re.compile(keyPattern)
+    matching = kMatcher.match(keyType)
+    if(matching):
+        keyEncoding = matching.group(1)
+        result = 1
+
+    return result
+
 #The shared key must be at least 128 bits and recommended 160 according to RFC4226
 #Will not enforce this. But will instead provide warning.
 def check_shared_key(key):
     global sharedKey
+    global keyEncoding
+    types = ["hex", "base32", "base64"]
+    result = 1
+
     sharedKey = key
-    try:
-        base64.b32decode(sharedKey)
-        length = len(sharedKey)*5
-        #if(length < 128):
-            #print("The key provided is less than 128 bits. This is only a warning. Program continuing.")
-    except(binascii.Error, TypeError):
-        print("The key provided is either not Base32 or you don't have correct padding")
-        return 0
+
+    if(keyEncoding == types[0]):
+        try:
+            binascii.unhexlify(sharedKey)
+        except(binascii.Error, TypeError):
+            print("The key provided is either not in hexadecimal format")
+            print("or you don't have correct padding")
+            result = 0
+    elif(keyEncoding == types[1]): 
+        try:
+            base64.b32decode(sharedKey)
+        except(binascii.Error, TypeError):
+            print("The key provided is either not Base32")
+            print("or you don't have correct padding")
+            result = 0
+    elif(keyEncoding == types[2]):
+        try:
+            base64.b64decode(sharedKey)
+        except(binascii.Error, TypeError):
+            print("The key provided is either not Base64")
+            print("or you don't have correct padding")
+            result = 0
+
+    return result
             
 def check_digit_args(digit):
     global digits
     digArgP = "^d=([0-9]+)$"
     result = 0
     dmatcher = re.compile(digArgP)
-    result = dmatcher.match(digit)
+    matches = dmatcher.match(digit)
 
     if(result):
-        digit = int(result.group(1))
+        digit = int(matches.group(1))
         if(digit == 6 or digit == 8):
             result = 1
             digits = digit
-        else:
-            result = 0
+            
     if(result==0):
         print("digits must be 6 or 8")
     return result
@@ -323,7 +366,8 @@ def print_time_error():
 def proper_usage():
     print("Usage: otpsolver.py [key] [[counter] or [time]] [d=digits]")
     print("                    [--timebased] [ts=timestep] [--verbose]")
-    print("                    [T0=time] [hash=sha1|sha256|sha512]\n")
+    print("                    [T0=time] [hash=sha1|sha256|sha512]")
+    print("                    [key=hex|base32|base64]\n")
     print("Arguments:")
     print("key         => A base32, base64 or hexademical secret key")
     print("counter     => a integer value that can fit into 8 bytes. Can use this OR time")
@@ -337,7 +381,8 @@ def proper_usage():
     print("digits      => Specify the digits for the OTP. 6 ~ 8")
     print("--verbose   => use this to print debugging messages")
     print("T0          => The starting time used in TOTP. See time for usage details")
-    print("hash        => what hashing algorithm you would like used")
+    print("hash        => what hashing algorithm you would like used. Default is sha1")
+    print("key         => what encoding the key is supposed to use. Default is base32")
 
 '''
 Note to self: this function is here so that in future
@@ -345,8 +390,17 @@ you can test whether the key given is base64, base32 or hex
 For the moment it only converts base32 keys to bytes
 '''
 def key_to_bytes(key):
+    global keyEncoding
+    types = ["hex","base32","base64"]
     result = 0
-    result = base64.b32decode(key)
+
+    if(keyEncoding == types[0]):
+        result = binascii.unhexlify(key)
+    elif(keyEncoding == types[1]):
+        result = base64.b32decode(key)
+    elif(keyEncoding == types[2]):
+        result = base64.b64decode(key)
+        
     return result
 
 def totp_algorithm(key, count):
