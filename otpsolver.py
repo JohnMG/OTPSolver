@@ -3,6 +3,7 @@
 #Author: John Massy-Greene
 #Program Details: A TOTP Calculator
 #Date: 11/09/2017
+#Update: 6/3/2018
 #Version 1
 
 import time
@@ -34,14 +35,11 @@ hashAlgorithm = hashlib.sha1
 #keyEncoding will be a string that tells the program to decode the key
 #based on whether it is hexademical, base32 or base64. Default is base32
 keyEncoding = "base32"
+verboseInfo = ["----- Algorithm Variables -----\n"]
 
 
 '''
 TO DO:
-
-Future arguments required:
-- Base32/Base64/HEX
-
 Still need to implement the verbose 
 '''
 #The return codes are as follows:
@@ -406,8 +404,13 @@ def key_to_bytes(key):
 def totp_algorithm(key, count):
     global initialTime
     global timeStep
+    global verbose
+    global verboseInfo
 
     T = math.floor((count-initialTime)/timeStep)
+    if(verbose):
+        verboseInfo.append("This is T=((T1 - T0)/timestep): "+str(T))
+        
     result = hotp_algorithm(key, T)
     return result
 
@@ -415,6 +418,8 @@ def totp_algorithm(key, count):
 def hotp_algorithm(key, count):
     global digits
     global hashAlgorithm
+    global verbose
+    global verboseInfo
     
     mask1 = 0x0f
     mask2 = 0x7fffffff
@@ -431,6 +436,11 @@ def hotp_algorithm(key, count):
     fullCodeNum = fullCodeNum&mask2
 
     finalCode = fullCodeNum % (10**digits)
+    if(verbose):
+        verboseInfo.append("hmac(key, counter) in hex: "+HS.hex())
+        verboseInfo.append("full pin in hex: "+fullCode.hex())
+        verboseInfo.append("full pin in integer format: "+str(fullCodeNum))
+
     return finalCode
     
     
@@ -439,8 +449,10 @@ def main_calculation():
     global totp
     global sharedKey
     global counter
+    global verbose
     result = 0
-    
+
+        
     if(totp):
         result = totp_algorithm(sharedKey, counter)
     else:
@@ -448,26 +460,63 @@ def main_calculation():
 
     return result
 
+def collect_general_information():
+    global totp
+    global keyEncoding
+    global sharedKey
+    global counter
+    global hashAlgorithm
+    global digits
+    global timeStep
+    global initialTime
+    global verboseInfo
 
+    infoString = "OTP Algorithm Type: "
+    if(totp):
+        infoString = infoString+"time-based"
+    else:
+        infoString = infoString+"counter"
+
+    verboseInfo.append(infoString)
+    verboseInfo.append("Key Encoding: "+keyEncoding)
+    verboseInfo.append("Key: "+sharedKey)
+    verboseInfo.append("Counter Value: "+str(counter))
+
+    hashAlgMap = {hashlib.sha1:"sha1", hashlib.sha256:"sha256",hashlib.sha512:"sha512"}
+    verboseInfo.append("Hashing Algorithm: "+hashAlgMap[hashAlgorithm])
+    verboseInfo.append("Digits in Pin: "+str(digits))
+
+    if(totp):
+        verboseInfo.append("Time Step: "+str(timeStep))
+        verboseInfo.append("T0 as counter value: "+str(initialTime))
+
+    verboseInfo.append("\n------- Algorithm Calculations Below ------\n")
+    
+    return
+    
+def print_verbose_information():
+    global verboseInfo
+    
+    for x in range(len(verboseInfo)):
+        print(verboseInfo[x])
+    print("\n--------Verbose Information Finished-----------")
 
 def main():
+    global verbose
     proceed = handleArgs()
     result  = 0
-    '''print("This is digits: "+str(digits))
-    print("This is verbose: "+str(verbose))
-    print("This is timestep: "+str(timeStep))
-    print("This is timebased: "+str(totp))
-    print("This is key: "+sharedKey)
-    print("This is counter: "+str(repr(counter)))
-    #print("This is the time: "+str(currentTime))
-    print(repr(time.time()))'''
+
     if(proceed == 1):
         proper_usage()
         sys.exit()
     else:
+        if(verbose):
+            collect_general_information()
         result = main_calculation()
 
     if(result!=0):
+        if(verbose):
+            print_verbose_information()
         print("This is the code: "+str(result))
 
 if __name__ == "__main__":
