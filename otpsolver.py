@@ -201,9 +201,9 @@ def check_digit_args(digit):
     dmatcher = re.compile(digArgP)
     matches = dmatcher.match(digit)
 
-    if(result):
+    if(matches):
         digit = int(matches.group(1))
-        if(digit == 6 or digit == 8):
+        if(digit >= 6 and digit <= 8):
             result = 1
             digits = digit
             
