@@ -44,8 +44,16 @@ expectedValues = ['94287082', '46119246', '90693936', '07081804', '68084774',
 
 hashMode = [' hash=sha1', ' hash=sha256', ' hash=sha512']
 
+akey = [' 3132333435363738393031323334353637383930',
+        ' 3132333435363738393031323334353637383930313233343536373839303132',
+        ' 3132333435363738393031323334353637383930'+
+         '3132333435363738393031323334353637383930'+
+         '3132333435363738393031323334353637383930'+
+         '31323334']
+
 times = ['1970:01:01:00:00:59', '2005:03:18:01:58:29', '2005:03:18:01:58:31',
          '2009:02:13:23:31:30', '2033:05:18:03:33:20', '2603:10:11:11:33:20']
+
 timeArg = ' --timebased'
 digitNum = ' d=8'
 evCounter = 0
@@ -53,7 +61,7 @@ evCounter = 0
 for x in range(len(times)):
     for y in range(len(hashMode)):
         strCounter = str(evCounter)
-        inputString = s1+key+" "+times[x]+keyType+timeArg+hashMode[y]+digitNum
+        inputString = s1+akey[y]+" "+times[x]+keyType+timeArg+hashMode[y]+digitNum
         output = subprocess.check_output(inputString, shell=True).decode("UTF-8")
         value = output[min:max]
 
