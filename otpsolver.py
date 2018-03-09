@@ -428,14 +428,22 @@ def hotp_algorithm(key, count):
     byteKey = key_to_bytes(key)
     byteCounter = count.to_bytes(8, byteorder='big', signed=False)
 
-    hmacsha1 = hmac.new(byteKey, byteCounter, hashAlg)
-    HS = hmacsha1.digest()
-    offset = HS[19]&mask1
+    hmacsha = hmac.new(byteKey, byteCounter, hashAlg)
+    HS = hmacsha.digest()
+    HSlen = len(HS)-1
+    
+    offset = HS[HSlen]&mask1
     fullCode = HS[offset:offset+4]
     fullCodeNum = int.from_bytes(fullCode, byteorder='big', signed=False)
     fullCodeNum = fullCodeNum&mask2
 
     finalCode = fullCodeNum % (10**digits)
+    finalCodeString = str(finalCode)
+    while(len(finalCodeString) < digits):
+        finalCodeString = "0" + finalCodeString
+    finalCode = finalCodeString
+        
+        
     if(verbose):
         verboseInfo.append("hmac(key, counter) in hex: "+HS.hex())
         verboseInfo.append("full pin in hex: "+fullCode.hex())
@@ -514,10 +522,9 @@ def main():
             collect_general_information()
         result = main_calculation()
 
-    if(result!=0):
         if(verbose):
             print_verbose_information()
-        print("This is the code: "+str(result))
+        print("This is the code: "+result)
 
 if __name__ == "__main__":
     main()
