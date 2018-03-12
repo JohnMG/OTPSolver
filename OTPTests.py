@@ -85,10 +85,12 @@ print("Mixed Test Type 1: Mixing up the positions of optional arguments")
 mixedNum = 0
 mixedInputs = []
 s2 = s1+akey[0]+times[0]
+ts = ' ts=30'
 mixedInputs.append(s2+keyType+timeArg+hashMode[0]+digitNum)
 mixedInputs.append(s2+digitNum+hashMode[0]+timeArg+keyType)
-mixedInputs.append(s2+hashMode[0]+digitNum+keyType+timeArg)
+mixedInputs.append(s2+hashMode[0]+digitNum+keyType+timeArg+ts)
 mixedInputs.append(s2+timeArg+digitNum+keyType+hashMode[0])
+mixedInputs.append(s2+timeArg+digitNum+keyType+hashMode[0]+ts)
 
 for x in range(len(mixedInputs)):
     mixedNum += 1
@@ -143,6 +145,19 @@ for x in range(3):
 
 print("\nMixed Test Type 4: Testing calculation of T by using non zero T0 value")
 
+t0Values = [' T0=1970:01:01:00:01:00',' T0=1970:01:01:01:23:20']
+t1Values = [' 1970:01:01:00:01:59',' 2033:05:18:04:56:40']
+expectedValues4 = ['94287082', '69279037']
 
-
+for x in range(2):
+    mixedNum +=1
+    inputs = s1+key+t1Values[x]+timeArg+keyType+digits[2]+t0Values[x]
+    output = subprocess.check_output(inputs, shell=True).decode("UTF-8")
+    value = output[min:max]
+    
+    outcome = "Mixed Test "+str(mixedNum)+": "
+    if(value == expectedValues4[x]):
+        print(outcome+"SUCCESS")
+    else:
+        print(outcome+"FAIL")
     
