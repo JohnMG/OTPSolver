@@ -1,10 +1,10 @@
 #!/usr/bin/python3
 
 #Author: John Massy-Greene
-#Program Details: A TOTP Calculator
+#Program Details: An OTP Calculator
 #Date: 11/09/2017
 #Update: 6/3/2018
-#Version 1
+#Version 2 of TOTPCalc.py
 
 import time
 import datetime
@@ -35,13 +35,10 @@ hashAlgorithm = hashlib.sha1
 #keyEncoding will be a string that tells the program to decode the key
 #based on whether it is hexademical, base32 or base64. Default is base32
 keyEncoding = "base32"
-verboseInfo = ["----- Algorithm Variables -----\n"]
+verboseInfo = ["---------- Algorithm Variables -----------------------------\n"]
 
 
-'''
-TO DO:
-Still need to implement the verbose 
-'''
+
 #The return codes are as follows:
 # 0 = Arguments handled successfully
 # 1 = Arguments given are not correct
@@ -214,7 +211,7 @@ def check_digit_args(digit):
 def check_time_step(timer):
     global timeStep
 
-    timeP = "^ts=([0-9]{1,3})$"
+    timeP = "^ts=([0-9]+)$"
     result = 0
 
     tmatcher = re.compile(timeP)
@@ -223,8 +220,8 @@ def check_time_step(timer):
         timeStep = int(matching.group(1))
         if(timeStep > 0):
             result = 1
-    if(result == 0):
-        print("Timestep must be a number between 1 and 99")
+    if(result <= 0):
+        print("Timestep must be a positive number")
     return result
 
 def check_hashing(hashType):
@@ -446,6 +443,7 @@ def hotp_algorithm(key, count):
         
     if(verbose):
         verboseInfo.append("hmac(key, counter) in hex: "+HS.hex())
+        verboseInfo.append("Offset is: "+str(offset))
         verboseInfo.append("full pin in hex: "+fullCode.hex())
         verboseInfo.append("full pin in integer format: "+str(fullCodeNum))
 
@@ -498,7 +496,7 @@ def collect_general_information():
         verboseInfo.append("Time Step: "+str(timeStep))
         verboseInfo.append("T0 as counter value: "+str(initialTime))
 
-    verboseInfo.append("\n------- Algorithm Calculations Below ------\n")
+    verboseInfo.append("\n---------- Algorithm Calculations Below --------------------\n")
     
     return
     
@@ -507,7 +505,7 @@ def print_verbose_information():
     
     for x in range(len(verboseInfo)):
         print(verboseInfo[x])
-    print("\n--------Verbose Information Finished-----------")
+    print("\n---------- Verbose Information Finished --------------------\n")
 
 def main():
     global verbose
