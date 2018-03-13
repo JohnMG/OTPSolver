@@ -16,12 +16,12 @@ Basic usage of the program can be determined by calling it with no arguments. Ca
 
 ### To calculate a basic HMAC-based OTP
 otpsolver.py key counter
-* key: This is the secret key which should be encoded in base32 format
+* key: This is the secret key which should be encoded in base32 format. By default the key should be in base32 format. But different encodings can be used.
 * counter: An integer that has a value of 0 <= x <= 2^63-1 (maximum bit value of 8 bytes signed)
 
 ### To calculate a basic Time-based OTP
 otpsolver.py key counter --timebased
-* key: This is the secret key which should be encoded in base32 format
+* key: This is the secret key which should be encoded in base32 format. By default the key should be in base32 format. But different encodings can be used.
 * counter: This argument can have one of two styles:
   * "now" - A string that tells the program you want to use the current unix epoch
   * "yy:mm:dd:hh:mm:ss:xxxx" - a string that specifies: the year, month, day, hour, minute, seconds and milliseconds. It should be noted that milliseconds are optional.
@@ -36,7 +36,7 @@ otpsolver.py key counter --timebased
 * T0=time - The initial time used in TOTP algorithm. The value of time must be of the same format as the counter
 * --verbose - This gives the additional information that shows the values that was used to calculate the OTP
 
-## Default Arguments
+### Default Argument Values
 * d=6
 * hash=sha1
 * T0=0 - 0 being the epoch value
@@ -49,4 +49,10 @@ otpsolver.py key counter --timebased
 ## Notes and Addenum
 1. This code can be used to calculate one time pins but should by no means used as the basis for an authenticator or used to secure  any applications. I cannot guarantee your communications or applications will be secure.
 
-2. There might be some research I could do into the resynchronisation for HOTP counter when the client and server counter don't match and the clients counter is outside of the servers window search range. Based on this section of RFC4226 https://tools.ietf.org/html/rfc4226#section-7.4
+2. According to the official python docs. Leap seconds are not supported at all. I believe this might be POSIX compliant but need to research it further. Another reason why you should be careful in using this code. Leap second handling between your machine and this code may be different. A fun fact about leap seconds is there's no rhyme or rhythm to them. Apparently the  International Earth Rotation and Reference Systems Service will decide 6 months in advance to implement. So the only way to implement leap seconds is to have a continually updated table. Not very algorithmic friendly.
+
+3. The unix epoch has the problem of having a maximum value of 32 bits. This means that time stops on 19 January, 2038 03:14:08. However RFC6238 requires that time be handled for 64 bits so it can fit into 8 bytes. Python thankfully handles unix epoch conversion past the current limit.
+
+4. While RFC4226 states the secret key must be 128 bits(or 16 bytes), Google's Two Factor Authenticator will allow you to have a minimum key length of 10 bytes. Not entirely sure how this affects security.  
+
+5. In future there might be some research I could do into HOTP counter resynchronisation. Based on this section of RFC4226 https://tools.ietf.org/html/rfc4226#section-7.4
