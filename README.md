@@ -47,12 +47,14 @@ otpsolver.py key counter --timebased
 
 
 ## Notes and Addenum
-1. This code can be used to calculate one time pins but should by no means used as the basis for an authenticator or used to secure  any applications. I cannot guarantee your communications or applications will be secure.
+1. There are definite improvements I can make to this program which include: Argument handling (manual handling isn't scalable), argument naming could be clearer and the use of global variables isn't very good programming style. A friend who checked over the code suggested using classes to manipulate and store the state of the program. Will look into these and others in future.
 
-2. According to the official python docs. Leap seconds are not supported at all. I believe this might be POSIX compliant but need to research it further. Another reason why you should be careful in using this code. Leap second handling between your machine and this code may be different. A fun fact about leap seconds is there's no rhyme or rhythm to them. Apparently the  International Earth Rotation and Reference Systems Service will decide 6 months in advance to implement. So the only way to implement leap seconds is to have a continually updated table. Not very algorithmic friendly.
+2. This code can be used to calculate one time pins but should by no means used as the basis for an authenticator or used to secure  any applications. I cannot guarantee your communications or applications will be secure.
 
-3. The unix epoch has the problem of having a maximum value of 32 bits. This means that time stops on 19 January, 2038 03:14:08. However RFC6238 requires that time be handled for 64 bits so it can fit into 8 bytes. Python thankfully handles unix epoch conversion past the current limit.
+3. According to the official python docs. Leap seconds are not supported at all. I believe this might be POSIX compliant but need to research it further. Another reason why you should be careful in using this code. Leap second handling between your machine and this code may be different. A fun fact about leap seconds is there's no rhyme or rhythm to them. Apparently the  International Earth Rotation and Reference Systems Service will decide 6 months in advance to implement. So the only way to implement leap seconds is to have a continually updated table. Not very algorithmic friendly.
 
-4. While RFC4226 states the secret key must be 128 bits(or 16 bytes), Google's Two Factor Authenticator will allow you to have a minimum key length of 10 bytes. Not entirely sure how this affects security.  
+4. The unix epoch has the problem of having a maximum value of 32 bits. This means that time stops on 19 January, 2038 03:14:08. However RFC6238 requires that time be handled for 64 bits so it can fit into 8 bytes. Python thankfully handles unix epoch conversion past the current limit.
 
-5. In future there might be some research I could do into HOTP counter resynchronisation. Based on this section of RFC4226 https://tools.ietf.org/html/rfc4226#section-7.4
+5. While RFC4226 states the secret key must be 128 bits(or 16 bytes), Google's Two Factor Authenticator will allow you to have a minimum key length of 10 bytes. Not entirely sure how this affects security.  
+
+6. In future there might be some research I could do into HOTP counter resynchronisation. Based on this section of RFC4226 https://tools.ietf.org/html/rfc4226#section-7.4
