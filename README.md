@@ -16,12 +16,12 @@ Basic usage of the program can be determined by calling it with no arguments. Ca
 
 ### To calculate a basic HMAC-based OTP
 otpsolver.py key counter
-* key: This is the secret key which should be encoded in base32 format. By default the key should be in base32 format. But different encodings can be used.
+* key: This is the secret key which should be encoded in base32 format. However different encodings can be used.
 * counter: An integer that has a value of 0 <= x <= 2^63-1 (maximum bit value of 8 bytes signed)
 
 ### To calculate a basic Time-based OTP
 otpsolver.py key counter --timebased
-* key: This is the secret key which should be encoded in base32 format. By default the key should be in base32 format. But different encodings can be used.
+* key: This is the secret key which should be encoded in base32 format. However different encodings can be used.
 * counter: This argument can have one of two styles:
   * "now" - A string that tells the program you want to use the current unix epoch
   * "yy:mm:dd:hh:mm:ss:xxxx" - a string that specifies: the year, month, day, hour, minute, seconds and milliseconds. It should be noted that milliseconds are optional.
